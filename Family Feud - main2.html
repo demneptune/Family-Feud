@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 Family Feud ESL Game</title>
+    <link rel="stylesheet" href="FFstyles.css">
+	
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="FFscript.js"></script>
+	
+</head>
+<body>
+    <div class="container">
+		 <div class="host-controls">
+			<h2>Host Controls</h2>
+			<button id="end-this-round">End Round</button>
+			<button id="switch-team">Switch Active Team</button>
+			<button id="edit-score">Edit Score</button>
+			<!-- <button id="undo-last-points">Undo Last Points</button> -->
+			<button id="reverse-last-points">Reverse Last Points</button>
+		</div>
+        <header>
+            <h1>🏆 Family Feud</h1>
+            <div class="subtitle">English Class Edition</div>
+        </header>
+
+        <div class="game-board">
+            <div id="team-a-panel" class="team-panel">
+                <div class="team-name">Team A</div>
+                <div class="score" id="team-a-score">0</div>
+				  <div class="strike-boxes" id="team-a-strikes">⚪⚪⚪⚪</div>
+            </div>
+            <div class="team-panel">
+                <div id="team-b-panel" class="team-name">Team B</div>
+                <div class="score" id="team-b-score">0</div>
+				<div class="strike-boxes" id="team-b-strikes">⚪⚪⚪⚪</div>
+            </div>
+
+            <div class="question-area">
+                <div class="question-text" id="current-question">Select a question to begin the game!</div>
+                <div class="answers-board" id="answers-board">
+                    <!-- Answers will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="reveal-answer">Reveal Answer</button>
+            <button id="wrong-answer">Wrong Answer</button>
+            <button id="next-round">Next Round</button>
+            <button id="reset-game">Reset Game</button>
+        </div>
+
+        <div class="questions-list">
+            <h2>Question Bank</h2>
+            <div id="questions-container">
+                <!-- Questions will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <div class="audio-controls">
+            <button id="toggle-sounds">Toggle Sounds</button>
+        </div>
+    </div>
+	<div id="wrong-answer-overlay" class="hidden">❌</div>
+
+
+
+</body>
+</html>
