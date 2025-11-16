@@ -74,6 +74,9 @@ h1 {
 }
 
 .team-panel {
+	
+	position: relative; /* **************NEW****************/
+	
     background: rgba(0, 0, 0, 0.6);
     border-radius: 15px;
     padding: 20px;
@@ -556,22 +559,129 @@ button:hover {
 
 
 
-/*
-.sweep-text::after {
-	content: '';
-	position: absolute;
-	left: -50%;
-	top: 0;
-	width: 200%;
-	height: 100%;
-	background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.7) 50%, transparent 100%);
-	mix-blend-mode: overlay;
-	animation: lightFlash 1.2s ease-in-out forwards;
+/* === STAKE OVERLAY === */
+.stake-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(4px) brightness(0.7);
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
 }
 
-@keyframes lightFlash {
-	0% { transform: translateX(-100%); opacity: 0; }
-	30% { opacity: 1; }
-	100% { transform: translateX(100%); opacity: 0; }
+.stake-overlay.visible {
+    opacity: 1;
+    pointer-events: all;
 }
-*/
+
+.stake-box {
+    background: rgba(10, 20, 60, 0.9);
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 0 25px rgba(0,0,0,0.4);
+    width: 350px;
+    text-align: center;
+    transform: scale(0.7);
+    transition: transform 0.25s ease;
+}
+
+.stake-overlay.visible .stake-box {
+    transform: scale(1);
+}
+
+.stake-box h2 {
+    margin-bottom: 15px;
+    font-size: 2rem;
+    color: #FFD700;
+}
+
+.stake-box input {
+    width: 80%;
+    padding: 12px;
+    font-size: 1.3rem;
+    border-radius: 10px;
+    border: none;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.stake-buttons {
+    display: flex;
+    justify-content: space-around;
+}
+
+.stake-buttons button {
+    padding: 10px 20px;
+    border-radius: 12px;
+}
+
+/* === SCORE SHRINK ANIMATION DURING STAKE === */
+.score.stake-shrink {
+    transform: scale(0.65) translateY(-20px);
+    opacity: 0.6;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+
+/* RELIES ON TEAM-PANEL POSITION BEING RELATIVE, WITHOUT THIS WOULD NOT WORK */
+
+.team-stake {
+	position: absolute;
+    top: 5px;
+    right: 8px;
+	
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #ffec73;
+    background: rgba(255, 215, 0, 0.15);
+    padding: 5px 10px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: inline-block;
+    text-shadow: 1px 1px 0 #000;
+    border: 1px solid rgba(255, 215, 0, 0.4);
+	
+	/* SCROLLING TEXT ANIMATION: Needed to clip the scrolling text */
+    overflow: hidden;
+    white-space: nowrap;
+    width: 120px;       
+	/* adjust to taste */
+
+    /* visually dynamic: pulses softly when changing */
+    /*animation: stakePulse 2s infinite ease-in-out;*/
+}
+/* The scrolling content itself */
+.team-stake span {
+    display: inline-block;
+    padding-left: 100%;   /* start off-screen to the right */
+    animation: stakeScroll 8s linear infinite;
+}
+
+
+
+.team-stake:has(> span:empty), .team-stake span:empty {
+	display: none;
+}
+
+@keyframes stakeScroll {
+    from {
+        transform: translateX(0%);
+    }
+    to {
+        transform: translateX(-100%);
+    }
+}
+
+@keyframes stakePulse {
+    0%   { opacity: 0.8; transform: scale(1); }
+    50%  { opacity: 1;   transform: scale(1.05); }
+    100% { opacity: 0.8; transform: scale(1); }
+}

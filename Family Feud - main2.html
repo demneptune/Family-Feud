@@ -19,6 +19,7 @@
 			<button id="edit-score">Edit Score</button>
 			<!-- <button id="undo-last-points">Undo Last Points</button> -->
 			<button id="reverse-last-points">Reverse Last Points</button>
+			<button id="stake-points-btn">Stake Points</button>
 		</div>
         <header>
             <h1>🏆 Family Feud</h1>
@@ -28,11 +29,13 @@
         <div class="game-board">
             <div id="team-a-panel" class="team-panel">
                 <div class="team-name">Team A</div>
+				<div class="team-stake" id="team-a-stake"><span></span></div>
                 <div class="score" id="team-a-score">0</div>
 				  <div class="strike-boxes" id="team-a-strikes">⚪⚪⚪⚪</div>
             </div>
             <div class="team-panel">
                 <div id="team-b-panel" class="team-name">Team B</div>
+				<div class="team-stake" id="team-b-stake"><span></span></div>
                 <div class="score" id="team-b-score">0</div>
 				<div class="strike-boxes" id="team-b-strikes">⚪⚪⚪⚪</div>
             </div>
@@ -62,6 +65,24 @@
         <div class="audio-controls">
             <button id="toggle-sounds">Toggle Sounds</button>
         </div>
+		
+		
+		<div id="stake-overlay" class="stake-overlay hidden">
+			<div class="stake-box">
+				<h2>Stake Points</h2>
+				<p id="stake-team-label" class="stake-info"></p>
+				<p id="stake-max-label" class="stake-info"></p>
+				<p>Enter amount to stake:</p>
+				<input type="number" id="stake-input" min="1" placeholder="0">
+				<div class="stake-buttons">
+					<button id="stake-confirm">Confirm</button>
+					<button id="stake-cancel">Cancel</button>
+				</div>
+			</div>
+		</div>
+
+		
+		
     </div>
 	<div id="wrong-answer-overlay" class="hidden">❌</div>
 

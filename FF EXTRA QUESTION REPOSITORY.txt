@@ -1,0 +1,251 @@
+// Sample questions data
+
+    {
+        id: 5,
+        question: "What would you do if someone next to you on a plane smelled bad?",
+        answers: [
+            { answer: "Change seats", points: 39 },
+            { answer: "Cover nose/Wear a mask", points: 24 },
+            { answer: "Turn your head", points: 6 },
+            { answer: "Put up with it", points: 6 },
+            { answer: "Spray perfume", points: 6 }
+        ]
+    },
+    {
+        id: 6,
+        question: "If Batman went broke, what Bat-item might he sell?",
+        answers: [
+            { answer: "Batmobile", points: 81 },
+            { answer: "Batcave", points: 9 },
+            { answer: "Batcopter", points: 2 },
+            { answer: "Batcycle", points: 2 },
+            { answer: "Batplane", points: 2 }
+        ]
+    },
+    {
+        id: 7,
+        question: "Name an animal without legs.",
+        answers: [
+            { answer: "Snake", points: 59 },
+            { answer: "Fish/Eel/Shark", points: 23 },
+            { answer: "Whale", points: 5 },
+            { answer: "Seal/Sea Lion", points: 4 },
+            { answer: "Worm", points: 2 }
+        ]
+    },
+    {
+        id: 8,
+        question: "If your dog ran away, name something you'd be shocked to see he took along.",
+        answers: [
+            { answer: "The cat", points: 23 },
+            { answer: "His leash or collar", points: 17 },
+            { answer: "Food or bowl", points: 16 },
+            { answer: "A bone", points: 9 },
+            { answer: "His bed or pillow", points: 6 },
+            { answer: "Your wallet or cash", points: 4 }
+        ]
+    },
+    {
+        id: 9,
+        question: "Name something people often do at night.",
+        answers: [
+            { answer: "Read a book", points: 26 },
+            { answer: "Use their phone", points: 23 },
+            { answer: "Play board games", points: 20 },
+            { answer: "Play video games", points: 17 },
+            { answer: "Meditate", points: 14 }
+        ]
+    },
+    {
+        id: 10,
+        question: "Name things that are hot.",
+        answers: [
+            { answer: "Fire", points: 26 },
+            { answer: "Coffee", points: 24 },
+            { answer: "Tea", points: 21 },
+            { answer: "Stove", points: 16 },
+            { answer: "Fireplace", points: 13 }
+        ]
+    },
+    {
+        id: 11,
+        question: "Name something some people are scared to ride.",
+        answers: [
+            { answer: "Airplane", points: 44 },
+            { answer: "Motorcycle", points: 21 },
+            { answer: "Roller Coaster", points: 16 },
+            { answer: "Boat", points: 4 },
+            { answer: "Horse", points: 4 },
+            { answer: "Elevator", points: 3 }
+        ]
+    },
+    {
+        id: 12,
+        question: "Name a common fear.",
+        answers: [
+            { answer: "Heights", points: 50 },
+            { answer: "Spiders", points: 25 },
+            { answer: "Public Speaking", points: 15 },
+            { answer: "Flying", points: 10 }
+        ]
+    },
+    {
+        id: 13,
+        question: "Name something people forget when they leave the house.",
+        answers: [
+            { answer: "Keys", points: 50 },
+            { answer: "Phone", points: 25 },
+            { answer: "Wallet", points: 15 },
+            { answer: "Sunglasses", points: 10 }
+        ]
+    },
+    {
+        id: 14,
+        question: "Name something with a long neck.",
+        answers: [
+            { answer: "Giraffe", points: 78 },
+            { answer: "Ostrich", points: 10 },
+            { answer: "Bottle", points: 4 },
+            { answer: "Crane", points: 3 },
+            { answer: "Swan", points: 3 },
+            { answer: "Glass", points: 2 }
+        ]
+    },
+    {
+        id: 15,
+        question: "Name a place where people often lose their keys.",
+        answers: [
+            { answer: "At home", points: 55 },
+            { answer: "At the mall", points: 17 },
+            { answer: "In a purse", points: 10 },
+            { answer: "In the car", points: 7 },
+            { answer: "At a bar", points: 6 }
+        ]
+    },
+    {
+        id: 16,
+        question: "Name a place teens complain about going to.",
+        answers: [
+            { answer: "School/College", points: 56 },
+            { answer: "Church", points: 26 },
+            { answer: "Family events", points: 9 },
+            { answer: "Doctor/Dentist", points: 4 },
+            { answer: "Grocery store", points: 2 },
+            { answer: "Work", points: 2 }
+        ]
+    },
+    {
+        id: 17,
+        question: "Name an animal that’s easy to act out in charades.",
+        answers: [
+            { answer: "Monkey/Ape", points: 32 },
+            { answer: "Dog", points: 21 },
+            { answer: "Cat", points: 16 },
+            { answer: "Bird", points: 14 },
+            { answer: "Elephant", points: 4 }
+        ]
+    },
+    {
+        id: 18,
+        question: "Name something people often do before a big presentation.",
+        answers: [
+            { answer: "Practice", points: 34 },
+            { answer: "Panic", points: 21 },
+            { answer: "Drink water", points: 18 },
+            { answer: "Check notes", points: 15 },
+            { answer: "Go to the bathroom", points: 12 }
+        ]
+    },
+    {
+        id: 19,
+        question: "Name something people say they never have enough of.",
+        answers: [
+            { answer: "Money", points: 39 },
+            { answer: "Time", points: 27 },
+            { answer: "Sleep", points: 17 },
+            { answer: "Energy", points: 10 },
+            { answer: "Vacation days", points: 7 }
+        ]
+    },
+    {
+        id: 20,
+        question: "Worst thing to forget on vacation.",
+        answers: [
+            { answer: "Toiletries", points: 29 },
+            { answer: "Clothes/Shoes", points: 28 },
+            { answer: "Money/Credit Card", points: 20 },
+            { answer: "Medication", points: 9 },
+            { answer: "Camera", points: 6 }
+        ]
+    },
+    {
+        id: 21,
+        question: "Name an animal starting with E.",
+        answers: [
+            { answer: "Elephant", points: 85 },
+            { answer: "Eagle", points: 7 },
+            { answer: "Eel", points: 3 },
+            { answer: "Emu", points: 3 }
+        ]
+    },
+    {
+        id: 22,
+        question: "Name a sport where athletes earn a lot.",
+        answers: [
+            { answer: "Football", points: 29 },
+            { answer: "Baseball", points: 27 },
+            { answer: "Basketball", points: 24 },
+            { answer: "Soccer", points: 7 },
+            { answer: "Tennis", points: 7 }
+        ]
+    },
+    {
+        id: 23,
+        question: "Name something people fall out of.",
+        answers: [
+            { answer: "Tree", points: 36 },
+            { answer: "Love", points: 25 },
+            { answer: "Bed", points: 21 },
+            { answer: "Chair", points: 12 },
+            { answer: "Car", points: 6 }
+        ]
+    },
+    {
+        id: 24,
+        question: "Name a chore nobody likes doing.",
+        answers: [
+            { answer: "Cleaning the bathroom", points: 45 },
+            { answer: "Doing the dishes", points: 25 },
+            { answer: "Vacuuming", points: 20 },
+            { answer: "Laundry", points: 10 }
+        ]
+    },
+    {
+        id: 25,
+        question: "Name something people do when they’re bored.",
+        answers: [
+            { answer: "Watch TV", points: 40 },
+            { answer: "Play video games", points: 30 },
+            { answer: "Read a book", points: 15 },
+            { answer: "Take a nap", points: 15 }
+        ]
+    },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

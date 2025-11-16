@@ -2,13 +2,15 @@
 //SOUND EFFECTS BY ZAPSPLAT FOR RIGHT AND WRONG ANSWERS
 
 //TODO: add something to show game is active, using css
-//TODO: keyboard with numbers for answer, 0 for wrong answer
-//TODO: visible feedback onscreen for wrong answer
-//@@@check page reload and score history functions
 //@@@add new question without clearing last question: should be disabled until round is finished
 //@@@new round isn't working yet: can't load up new question properly
 //@@@turn QuestionBank into QuestionManager: might handle things like how many answers revealed so far etc???
-//@@@visual feedback for clean sweep
+//@@@@@GOING WELL, BUT WON'T REVERSE STAKE POINTS!!!!
+//@@@@@CLEAN SWEEP CAN PRODUCE NAN
+
+
+
+window.isAnswerBoardLocked = false; //special global var, currently the only safe way to control this.
 
 
 $(document).ready(function() {
@@ -102,23 +104,48 @@ $(document).ready(function() {
 
 		playSound(name) {
 			const sound = this.#sounds[name];
-			if (sound) {
+			if (this.#soundsEnabled && sound) {
 				sound.currentTime = 0;
 				sound.play();
 			}
 		}
 
         // Public methods
-        
         toggleSounds() {
             this.#soundsEnabled = !this.#soundsEnabled;
             return this.#soundsEnabled;
-        }
-        
+        }        
         areSoundsEnabled() {
             return this.#soundsEnabled;
         }
         
+		
+		playCountdown321() {
+			if (!this.#soundsEnabled) return;
+
+			const utterances = [
+				new SpeechSynthesisUtterance("Three"),
+				new SpeechSynthesisUtterance("Two"),
+				new SpeechSynthesisUtterance("One"),
+				//new SpeechSynthesisUtterance("Confirm your stake")
+			];
+
+			utterances.forEach(u => {
+				u.rate = 1;       // Slightly slower for clarity
+				u.pitch = 1.2;      // Friendly voice
+				u.volume = 1;
+			});
+
+			// Chain them one after another
+			utterances[0].onend = () => speechSynthesis.speak(utterances[1]);
+			utterances[1].onend = () => speechSynthesis.speak(utterances[2]);
+			utterances[2].onend = () => speechSynthesis.speak(utterances[3]);
+
+			speechSynthesis.speak(utterances[0]);
+		}
+		
+		
+		
         // Private method
         #playBeep(frequency, duration) {
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -140,10 +167,12 @@ $(document).ready(function() {
     }
 
 	class ScoreManager {
+		#parent;
 		#history = []; 
 		#errorCounts;
 		#currentScores; //scores-teamA-teamB
-		#pointsFromThisRound; //same format as all scores, counts only points direct from board this round.
+		#pointsThisRound; //same format as all scores, counts only points direct from board this round.
+		#currentStake = 0; //single round value
 		#currentRoundIndex = 0;
 		#totalScoreThisRound; //total score available for this round.
 		#currentQuestionSM;
@@ -151,20 +180,49 @@ $(document).ready(function() {
 		#sAnswerTrackerSM; //tracks independently of Game Manager, same var name
 	
 		// Constructor optionally takes initial scores
-		constructor(initialTeamAScore = 0, initialTeamBScore = 0) {
+		constructor({parent}) {
+			this.#parent = parent;
 			this.#currentScores = { teamA: 0, teamB: 0 };
-			this.#currentScores.teamA = initialTeamAScore;
-			this.#currentScores.teamB = initialTeamBScore;
+			this.#pointsThisRound = { teamA: 0, teamB: 0 };
 			this.#errorCounts = {teamA: 0, teamB: 0};
 			this.#sAnswerTrackerSM = new Set();
 		}
+
+		//getters
+		getScores() { return { ...this.#currentScores }; } //return a copy to prevent changes
+		getScoreByTeamName(name) { return this.#currentScores[("team" + name)]; }
+		getPointsThisRoundByTeamName(name) { return this.#pointsThisRound[("team" + name)]; }
+		getHistory() { return [...this.#history]; } //return a copy only
+		getHistoryLength() { return this.#history.length; }
+		getCurrentStakeSM() { return this.#currentStake; }
+		#getBoardRendererSM() { return this.#parent.getBoardRenderer(); } //should be called after setting scores
 		
+		//CALLED ONCE, by renderAnswersBoardBR()
+		getHasIndex(index) {
+			return this.#history.filter( (item) => { 
+				return (item.answerIndex === index);
+			}).length > 0;
+		}
+		setCurrentStake(value) { this.#currentStake = value; }
+		
+		//pre: mode can be 'add' or 'edit' -> currently only used for 'add' mode, should change to edit
+		#setCurrentScoresWithObj({mode = 'add', currentA = null, currentB = null, thisRndA = null, thisRndB = null}) {
+			const multiplier = mode === 'add' ? 1 : 0;
+			if (currentA !== null) this.#currentScores.teamA = currentA + this.#currentScores.teamA * multiplier;
+			if (currentB !== null) this.#currentScores.teamB = currentB + this.#currentScores.teamB * multiplier;
+			if (thisRndA !== null) this.#pointsThisRound.teamA = thisRndA + this.#pointsThisRound.teamA * multiplier;
+			if (thisRndB !== null) this.#pointsThisRound.teamB = thisRndB + this.#pointsThisRound.teamB * multiplier;
+
+			this.setCurrentStake(0);
+			this.#getBoardRendererSM().updateScoresDisplayBR();
+		}
+
 		//setup new round, called only by selectQuestion()
 		startNewRoundSM(currentQuestion) {
 			this.#currentQuestionSM = currentQuestion
 			this.#sAnswerTrackerSM = new Set();
 			this.#clearHistory();
-			this.#pointsFromThisRound = { teamA: 0, teamB: 0 };
+			this.#pointsThisRound = { teamA: 0, teamB: 0 };
 			this.#totalNumberOfAnswers = currentQuestion.answers.length;
 		}
 
@@ -175,100 +233,115 @@ $(document).ready(function() {
 				currentQuestion.answers.forEach( x => {
 					this.#totalScoreThisRound += x.points;
 				});
-				console.log("in ScoreManager, in calculateTotalScoreThisRound, total points", 
-					this.#totalScoreThisRound);
 			} else {
-				console.log("in ScoreManager, in calculateTotalScoreThisRound, can't find points");
-			}		
+				console.warn("in ScoreManager, in calculateTotalScoreThisRound, can't find points");
+			}
 		}
 
-		//getters
-		getScores() { return { ...this.#currentScores }; } //return a copy to prevent changes
-		getHistory() { return [...this.#history]; } //return a copy only
-		getHistoryLength() { return this.#history.length; }
-		
-		//CALLED ONCE, FOR renderAnswersBoardBR
-		getHasIndex(index) {
-			return this.#history.filter( (item) => { //@@@syntax: find an item with the given index
-				console.log("-----in ScoreManager, item.answerIndex, index: ", item.answerIndex, index);
-				return (item.answerIndex === index);
-			}).length > 0;
-		}
-		//getErrorCounts() { return {...this.#errorCounts}; }
-
-		// Add points from an object supplied when calling, addPoints-type-team-points-answerIndex
+		// Add points from an object supplied when calling:
+			//processScoring-type-team-boardPoints-manualPoints-answerIndex
+		// pre: used for 'correctAnswer' 'wrongAnswer' and 'manual'
+		// add stake for correct answer or wrong answer, NOT manual
 		// update history stack
-		// return copy of scores-teamA-teamB
-		processScoringFromSuppliedObject({type = 'auto', team, points, answerIndex = null}) {
-			if (team !== 'A' && team !== 'B') {
-				throw new Error('Team must be "A" or "B"');
-			}
-			this.#updateScoresSM({type, team, points, answerIndex});
-			if (answerIndex !== null) {
-				this.#sAnswerTrackerSM.add(answerIndex);
-			}
-			console.log("sAnswerTrackerSM: ", this.#sAnswerTrackerSM);
-			console.log("in processScoringFromSuppliedObject(), checking if condition: ", 
-				this.#sAnswerTrackerSM.size, this.#totalNumberOfAnswers);
-			console.log("sAnswerTrackerSM: ", this.#sAnswerTrackerSM);
-			
-			if (this.#sAnswerTrackerSM.size === this.#totalNumberOfAnswers && type === 'auto') {
-				const otherTeam = team === 'A' ? 'B' : 'A';
-				const pointsToTransfer = team === 'A' ? this.#pointsFromThisRound.teamB :
-														this.#pointsFromThisRound.teamA;
-				this.#updateScoresSM({type: 'cleanSweep', team, points: pointsToTransfer});
-				this.#updateScoresSM({type: 'cleanSweep', team: otherTeam, points: (-pointsToTransfer)});
-			}
-			return this.getScores();
-		}
 		
-		#updateScoresSM({type = 'auto', team, points, answerIndex = null}) {
-			if (team === 'A') {
-				this.#currentScores.teamA += points;
-				this.#pointsFromThisRound.teamA += points;
-			} else {
-				this.#currentScores.teamB += points;
-				this.#pointsFromThisRound.teamB += points;
+		//@@@@@@@signature changed: no more "points"
+		processScoringFromSuppliedObject({type = 'correctAnswer', team, boardPoints, manualPoints, answerIndex = null}) {
+			if (team !== 'A' && team !== 'B') { throw new Error('Team must be "A" or "B"'); }
+			let multiplier = 0;
+			switch(type) {
+				case 'correctAnswer':
+					multiplier = 1;
+					break;
+				case 'wrongAnswer':
+					multiplier = -1;
+					break;
 			}
+			const stakePoints = this.#currentStake * multiplier;
 			
+			//@@@@@open change: clean sweep is tricky now
+			this.#updateScoresWithHistorySM({type, team, boardPoints, manualPoints, stakePoints, answerIndex});
+			if (answerIndex !== null) { this.#sAnswerTrackerSM.add(answerIndex); }
+
+			if (this.#sAnswerTrackerSM.size === this.#totalNumberOfAnswers && type === 'correctAnswer') {
+				const otherTeam = team === 'A' ? 'B' : 'A';
+				const pointsToTransfer = team === 'A' ? this.#pointsThisRound.teamB :
+														this.#pointsThisRound.teamA;
+				this.#updateScoresWithHistorySM({type: 'cleanSweep', team, boardPoints: pointsToTransfer});
+				this.#updateScoresWithHistorySM({type: 'cleanSweep', team: otherTeam, 
+							boardPoints: (-pointsToTransfer)});
+			}
+		}
+
+		//pre: stakePoints has the correct sign (-ve for wrong answer)
+		//updateScores-type-team-boardPoints-stakePoints-answerIndex
+		#updateScoresWithHistorySM({type, team, boardPoints, stakePoints, answerIndex = null}) {
+
+			if (!type) { throw new Error("type cannot be null or empty"); }
+
+			const mode = type === 'manual' ? 'edit' : 'add';
+
+			this.#setCurrentScoresWithObj({ 
+				mode, 
+				["current" + team]: (boardPoints + stakePoints),
+				["thisRnd" + team]: boardPoints,
+			});
+
 			// Push to history
 			this.#history.push({
 				type,
 				team,
-				points,
+				boardPoints,
+				stakePoints,
 				answerIndex,
-				timestamp: Date.now()
+				timestamp: Date.now(),
 			});
 		}
 
 		// addPoints-type-team-points-answerIndex
-		manualEdit({type = 'manual', team, points}) {
-			console.log("in manualEdit(), points: ", points);
-			return this.processScoringFromSuppliedObject({type: 'manual', team, points, answerIndex: null});
+		// @@@check what happens: seems to subtract current score to compensate for the addition:
+				//this should be corrected, use mode "edit" rather than add
+		manualEdit({team, manualPoints}) { //@@@@@must check manual edits
+			console.log("in manualEdit(), points: ", manualPoints);
+			this.processScoringFromSuppliedObject({type: 'manual', team, manualPoints, answerIndex: null}); 
 		}
 
 		// Reverse last move (subtract from original team, add to the other)
 		reverseLast() {
 			if (this.#history.length === 0) return this.getScores();
 
-			const lastChange = this.#history.pop();
+			const lastChange = this.#history.at(-1);
 			console.log("in reverseLast(), lastChange: ", lastChange);
-			if (lastChange.type !== 'auto') {
-				N.toastBad("Can only reverse revealed answer points", 2000);
-				this.#history.push(lastChange);
-				console.log("----------in reverseLast(), found last change was manual");
-			} else if (lastChange.team === 'A') {
-				console.log("----------in reverseLast(), last team was A");
-				this.#currentScores.teamA -= lastChange.points;
-				this.#currentScores.teamB += lastChange.points;
-				this.#history.push({ ...lastChange, team: 'B' }); // push reversed move
+			if (lastChange.type === 'manual') {
+				N.toastBad("Cannot reverse after manual edit", 2000);
 			} else {
-				console.log("----------in reverseLast(), last team was B");
-				this.#currentScores.teamB -= lastChange.points;
-				this.#currentScores.teamA += lastChange.points;
-				this.#history.push({ ...lastChange, team: 'A' });
+				const other = lastChange.team === 'A' ? 'B' : 'A';
+				this.#updateScoresWithHistorySM({
+					...lastChange, 
+					boardPoints: -lastChange.boardPoints,
+					stakePoints: -lastChange.stakePoints,
+				});
+				this.#updateScoresWithHistorySM({
+					...lastChange, 
+					team: other, //BUGWATCH: doesn't matter which team is active: think why not
+					boardPoints: +lastChange.boardPoints,
+					stakePoints: +lastChange.stakePoints,
+				});
 			}
-			return this.getScores();
+			console.log("In reverseLast(), History: ", this.#history);
+			
+			
+				
+				
+				
+				/*
+				this.#setCurrentScoresWithObj({
+					mode: 'add',
+					["current" + this.#parent.getCurrentTeamGM()]: -lastChange.points,
+					["current" + this.#parent.getOtherTeamGM()]: lastChange.points,
+					//["thisRnd" + this.#parent.getCurrentTeamGM()]
+				});*/
+				
+			
 		}
 
 		#clearHistory() {
@@ -294,17 +367,15 @@ $(document).ready(function() {
         #$currentQuestion;
 		#parent;
         
-        constructor({parent}) {
+        constructor({parent}) { //parent is GM
 			this.#parent = parent;
             this.#$answersBoard = $('#answers-board');
             this.#$questionsContainer = $('#questions-container');
             this.#$currentQuestion = $('#current-question');
         }
-
-        // Public methods
         renderQuestionsList(questions, onQuestionSelect) {
             this.#$questionsContainer.empty();
-            
+
             questions.forEach(question => {
                 const $questionElement = $('<div>')
                     .addClass('question-item')
@@ -372,7 +443,7 @@ $(document).ready(function() {
                 if (isRevealed) {
                     //$flipContainer.addClass('flipped'); //flipped is for horizontal flip
                     $flipContainer.addClass('rolled'); //rolled is for roll forward
-					console.log("in renderAnswersBoardBR->reorderedAnswers.forEach(...), just added an isRevealed");
+					console.log("-----in renderAnswersBoardBR->reorderedAnswers.forEach(...), just added an isRevealed");
                 }
 
                 this.#$answersBoard.append($flipContainer);
@@ -394,13 +465,22 @@ $(document).ready(function() {
         clearAnswersBoard() {
             this.#$answersBoard.empty();
         }
-        
-        updateScoresDisplayBR(scores) {
+		
+        updateScoresDisplayBR() {
+			console.log("In updateScoresDisplayBR(), STAKE: ", this.#parent.getScoreManager().getCurrentStakeSM());
+			$('#team-a-stake span').text("");
+			$('#team-b-stake span').text("");
+			const scores = this.#parent.getScoreManager().getScores(); 
             $('#team-a-score').text(scores.teamA);
             $('#team-b-score').text(scores.teamB);
+			const teamLowerCase = this.#parent.getCurrentTeamGM().toLowerCase();
+			if (this.#parent.getScoreManager().getCurrentStakeSM()) {
+				$(`#team-${teamLowerCase}-stake span`).text("STAKE: " + this.#parent.getScoreManager().getCurrentStakeSM() );
+			}
         }
         
-        highlightCurrentTeam(currentTeam) {
+        highlightCurrentTeam() {
+			const currentTeam = this.#parent.getCurrentTeamGM();
             const $teamAPanel = $('.team-panel').first();
             const $teamBPanel = $('.team-panel').last();
             
@@ -502,7 +582,8 @@ $(document).ready(function() {
         #gameManager;
 		#scoreManagerUI;
 		#boardRendererUI;
-        
+		//#isAnswerBoardLocked = false;
+		
         constructor(gameManager) {
             this.#gameManager = gameManager;
 			this.#scoreManagerUI = gameManager.getScoreManager();
@@ -516,18 +597,18 @@ $(document).ready(function() {
             // Can be expanded for more complex UI updates
         }
 		
+		
 		updateWrongAnswerUI(errorCounts) {
 			this.#showWrongAnswerOverlay();
 			this.#updateStrikeBoxes(errorCounts);
 		}
-		showCleanSweepAnimation() {
-			console.log("in showCleanSweepAnimation()");
+		showCleanSweepAnimation(message) {
 			
 			// Create full-screen overlay
 			const overlay = $(`
 				<div class="clean-sweep-overlay">
 					<div class="sweep-bar"></div>
-					<div class="sweep-text">CLEAN SWEEP!</div>
+					<div class="sweep-text">${message}</div>
 				</div>
 			`);
 
@@ -547,11 +628,14 @@ $(document).ready(function() {
 			// Listen for keydown events on the whole document
 			$(document).on('keydown', (e) => {
 				// Only respond to number keys 1-9 (you can extend)
-				e.preventDefault();
+				if (isAnswerBoardLocked) {
+					return;
+				}
 				const key = e.key;
 
 				// Ignore anything outside 1-9
 				if (!/^[0-9]$/.test(key)) return;
+				e.preventDefault();
 
 				console.log("Key pressed: ", key);
 				if (key === '0') { console.log("-----Wrong answer button-----"); }
@@ -561,12 +645,6 @@ $(document).ready(function() {
 				this.#gameManager.processAnswerByIndex(answerIndex);
 			});
 		}
-
-
-
-
-
-
 		
 		#updateStrikeBoxes(errorCounts) {
 			  const maxStrikes = 4;
@@ -591,7 +669,40 @@ $(document).ready(function() {
 				$overlay.removeClass('show');
 			}, 800);
 		}
-        
+		
+		#toggleStakeWindow(show) {
+			
+			const thisTeam = this.#gameManager.getCurrentTeamGM(); // "A" or "B"
+			const thisTeamKey = thisTeam === "A" ? "teamA" : "teamB";
+			const thisTeamScore = this.#scoreManagerUI.getScores()[thisTeamKey];
+			
+			if (show) {
+				isAnswerBoardLocked = true;
+				$("#stake-overlay").addClass("visible");
+				$(".score").addClass("stake-shrink");
+				
+				// Update labels
+				$("#stake-team-label").text(`Current Team: Team ${thisTeam}`);
+				$("#stake-max-label").text(`Max Allowed Stake: ${thisTeamScore}`);
+
+				// Set input limits
+				const stakeInput = $("#stake-input");
+				stakeInput.attr("max", thisTeamScore);
+				stakeInput.val("");  // clear previous value
+
+				// Auto focus after small delay (HTML needs to render)
+				setTimeout(() => stakeInput.trigger("focus"), 100);
+
+			} else {
+				isAnswerBoardLocked = false;
+				$("#stake-overlay").removeClass("visible");
+				$(".score").removeClass("stake-shrink");
+				const value = Math.max(Math.min( parseInt($("#stake-input").val(), 10), thisTeamScore), 0);
+				if (isNaN(value)) return;
+				this.#gameManager.applyStakeGM(value);
+			}
+		}
+
         // Private methods
         #setupEventListenersUI() {
             $('#reveal-answer').on('click', () => this.#gameManager.revealNextAnswer());
@@ -601,13 +712,28 @@ $(document).ready(function() {
             $('#toggle-sounds').on('click', () => this.#gameManager.toggleSounds());
             $('#switch-team').on('click', () => this.#gameManager.switchActiveTeamGM());
             $('#end-this-round').on('click', () => this.#gameManager.endThisRound());
-			$('#edit-score').on('click', () => this.#gameManager.editScoresGM());
+			$('#edit-score').on('click', () => {
+				isAnswerBoardLocked = true;
+				this.#gameManager.editScoresGM();
+			});
+
 			$('#reverse-last-points').on('click', () => {
-				const scores = this.#scoreManagerUI.reverseLast();
-				this.#boardRendererUI.updateScoresDisplayBR(scores);
+				this.#scoreManagerUI.reverseLast();
+			});
+			$("#stake-points-btn").on("click", () => {
+				this.#toggleStakeWindow(true);
+			});
+			$("#stake-cancel").on("click", () => {
+				this.#toggleStakeWindow(false);
+			});
+			$("#stake-confirm").on("click", () => {
+				const value = $("#stake-input").val();
+				console.log("Stake entered:", value);
+				setTimeout( () => this.#boardRendererUI.updateScoresDisplayBR(), 50);
+				this.#toggleStakeWindow(false);
 			});
         }
-    }
+	}
 
 
     class GameManager {
@@ -621,10 +747,11 @@ $(document).ready(function() {
 		#isThisRoundActive = false;
         #currentQuestion = null;
 		#currentTeam = 'A';
+		#otherTeam = 'B';
 
         constructor(questionsData) {
             this.#questionBank = new QuestionBank(questionsData);
-            this.#scoreManagerGM = new ScoreManager();
+            this.#scoreManagerGM = new ScoreManager({parent: this});
 			this.#sAnswerTrackerGM = new Set(); //TODO: can be moved to ScoreManager
             this.#boardRendererGM = new BoardRenderer({parent: this});
             this.#audioManager = new AudioManager();
@@ -635,6 +762,8 @@ $(document).ready(function() {
 		//needed for click listeners
 		getScoreManager() { return this.#scoreManagerGM; }
 		getBoardRenderer() { return this.#boardRendererGM; }
+		getCurrentTeamGM() { return this.#currentTeam; }
+		getOtherTeamGM() { return this.#otherTeam; }
 		endThisRound() {this.#isThisRoundActive = false;}
 
 		//set as a click listener on each question in the question bank
@@ -670,27 +799,29 @@ $(document).ready(function() {
 			}
 		}
 		
-		
-		
-		
+
 
 		//CLICK LISTENER FUNCTION: passed as a variable, added as a click listener to each panel; also called when answers revealed at end of game.
 		//pre: trusts the index is correct (comes from a click event)
 		//flips answer, adds to array of revealed answers, plays sound
         #onAnswerRevealGM(index) {
-				this.#boardRendererGM.flipAnswer(index);
-				this.#audioManager.playSound('reveal');
-				const answer = this.#currentQuestion.answers[index];
-				const scores = this.#scoreManagerGM.processScoringFromSuppliedObject({
-					type:'auto', team: this.#currentTeam, points: answer.points, answerIndex: index});
-											//addPoints-type-team-points-answerIndex
-				this.#sAnswerTrackerGM.add(index);
-				this.#boardRendererGM.updateScoresDisplayBR(scores);
-				this.#audioManager.playSound('correct');
-				//QUICKFIX: clean sweep
-				if (this.#sAnswerTrackerGM.size === this.#currentQuestion.answers.length) {
-					this.#uiHandlerGM.showCleanSweepAnimation();
-				}
+			
+			this.#sAnswerTrackerGM.add(index);
+			
+			//QUICKFIX: clean sweep
+			if (this.#sAnswerTrackerGM.size === this.#currentQuestion.answers.length) {
+				const message = this.#scoreManagerGM.getPointsThisRoundByTeamName(this.#otherTeam) === 0 ? "CLEAN SWEEP!" : "STEAL!!!"; 
+				this.#uiHandlerGM.showCleanSweepAnimation(message);
+			}
+
+			const answer = this.#currentQuestion.answers[index];
+			this.#scoreManagerGM.processScoringFromSuppliedObject({
+				type:'correctAnswer', team: this.#currentTeam, boardPoints: answer.points, answerIndex: index});
+										//addPoints-type-team-points-answerIndex
+
+			this.#boardRendererGM.flipAnswer(index);
+			this.#audioManager.playSound('correct');
+			this.#audioManager.playSound('correct');
         }
 
 		//designed to reveal at end of round
@@ -709,21 +840,38 @@ $(document).ready(function() {
 				console.log("all answers revealed");
 			}
         }
-
+		
+		///switchActiveTeamGM()
 		switchActiveTeamGM() {
-			this.#currentTeam = this.#currentTeam === 'A' ? 'B' : 'A';
-            this.#boardRendererGM.highlightCurrentTeam(this.#currentTeam);
+			const newCurrentTeam = this.#otherTeam;
+			this.#otherTeam = this.#currentTeam;
+			this.#currentTeam = newCurrentTeam;
+            this.#boardRendererGM.highlightCurrentTeam();
 		}
         
         #processWrongAnswer() {
 			const errorCounts = this.#scoreManagerGM.incrementError(this.#currentTeam);
+			this.#scoreManagerGM.processScoringFromSuppliedObject({
+				type: 'wrongAnswer',
+				team: this.#currentTeam,
+				boardPoints: 0, //controlled by stake found in ScoreManager
+				answerIndex: null,
+			});
             this.#audioManager.playSound('wrong');
 			this.#uiHandlerGM.updateWrongAnswerUI(errorCounts);
 			this.switchActiveTeamGM();
         }
 
+		applyStakeGM(stake) {
+			this.#scoreManagerGM.setCurrentStake(stake);
+		}
+
+		//edit scores by sending a callback to editScoresBR (entire function here is a callback function)
 		editScoresGM() {
 			this.#boardRendererGM.editScoresBR( (results) => {
+				
+				isAnswerBoardLocked = false;
+				
 				const teamAVal = parseInt(results['team-a-score'], 10);
 				const teamBVal = parseInt(results['team-b-score'], 10);
 
@@ -733,14 +881,12 @@ $(document).ready(function() {
 					teamBVal !== this.#scoreManagerGM.getScores().teamB) {
 						
 						this.#scoreManagerGM.manualEdit({
-							type: 'manual',
 							team: 'A',
-							points: teamAVal - this.#scoreManagerGM.getScores().teamA
+							manualPoints: teamAVal - this.#scoreManagerGM.getScores().teamA
 						});
 						this.#scoreManagerGM.manualEdit({
-							type: 'manual',
 							team: 'B',
-							points: teamBVal - this.#scoreManagerGM.getScores().teamB
+							manualPoints: teamBVal - this.#scoreManagerGM.getScores().teamB
 						});
 						N.toast("Scores updated");
 					} else {
@@ -750,7 +896,7 @@ $(document).ready(function() {
 			});
 		}
 
-        //@@@called by next-round button, sets up new round, but without question chosen as yet.
+        //called by next-round button, sets up new round, but without question chosen as yet.
         nextRound() {
 			//@@@ensure all answers revealed???
             this.#currentQuestion = null;
@@ -761,15 +907,17 @@ $(document).ready(function() {
         }
         
         resetGame() {
-            const scores = this.#scoreManagerGM.resetScores();
+            this.#scoreManagerGM.resetScores();
             this.#currentQuestion = null;
             //this.#revealedAnswers = [];
             
-            this.#boardRendererGM.updateScoresDisplayBR(scores.teamA, scores.teamB);
+			this.#currentTeam = 'A'; //@@@needs a better default method, one place initialise and reset
+			this.#otherTeam = 'B';
+            this.#boardRendererGM.updateScoresDisplayBR(); 
             this.#boardRendererGM.updateQuestionDisplay('Select a question to begin the game!');
             this.#boardRendererGM.clearAnswersBoard();
             this.#boardRendererGM.resetQuestionSelection();
-            this.#boardRendererGM.highlightCurrentTeam('A');
+            this.#boardRendererGM.highlightCurrentTeam();
         }
         
         toggleSounds() {
@@ -780,9 +928,8 @@ $(document).ready(function() {
         #initializeGame() {
             const questions = this.#questionBank.getAllQuestions();
             this.#boardRendererGM.renderQuestionsList(questions, (questionId) => this.selectQuestion(questionId));
-            const scores = this.#scoreManagerGM.getScores();
-            this.#boardRendererGM.updateScoresDisplayBR(scores.teamA, scores.teamB);
-            this.#boardRendererGM.highlightCurrentTeam(this.#currentTeam);
+            this.#boardRendererGM.updateScoresDisplayBR();
+            this.#boardRendererGM.highlightCurrentTeam();
         }
         
 
@@ -1075,49 +1222,3 @@ $(document).ready(function() {
 });
 
 
-
-
-
-
-	/*
-    class ScoreManager {
-        #teamAScore = 0;
-        #teamBScore = 0;
-        #currentTeam = 'A';
-        
-        // Public methods
-        getScores() {
-            return {
-                teamA: this.#teamAScore,
-                teamB: this.#teamBScore
-            };
-        }
-        getCurrentTeam() { return this.#currentTeam; }
-
-        switchTeam() {
-            this.#currentTeam = this.#currentTeam === 'A' ? 'B' : 'A';
-            return this.#currentTeam;
-        }
-        
-        addPoints(points) {
-            if (this.#currentTeam === 'A') {
-                this.#teamAScore += points;
-            } else {
-                this.#teamBScore += points;
-            }
-            return this.getScores();
-        }
-        resetScores() {
-            this.#teamAScore = 0;
-            this.#teamBScore = 0;
-            this.#currentTeam = 'A';
-            return this.getScores();
-        }
-		//@@@new: adjust according to buttons
-		adjustTeamPoints(team, delta) {
-			if (team === 'A') this.#teamAScore += delta;
-			else this.#teamBScore += delta;
-			return this.getScores();
-		}
-
-    } */
